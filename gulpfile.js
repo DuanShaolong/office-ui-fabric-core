@@ -6,13 +6,23 @@ var ConsoleHelper = require('./gulp/modules/ConsoleHelper');
 var Server = require('./gulp/modules/Server');
 var Utilites = require('./gulp/modules/Utilities');
 var ErrorHandling = require('./gulp/modules/ErrorHandling');
-var BuildConfig = require('./gulp/modules/BuildConfig');
 
 //////////////////////////
-// INCLUDE FABRIC TASKS
+// BUILD TASKS
 //////////////////////////
 
 Plugins.requireDir('../../gulp');
+var {buildMessagesFinished, buildMessagesServer, buildMessagesUpdated} = require('./gulp/BuildMessages');
+var {documentationBuild,documentationNuke} = require('./gulp/Documentation');
+var {fabricBuild, fabricNuke} = require('./gulp/FabricBuild');
+var {setDebugMode} = require('./gulp/ConfigureEnvironment')
+var {linting} = require('./gulp/Linting');
+var {server} = require('./gulp/Server');
+
+//////////////////////////
+// MAIN BUILD
+//////////////////////////
+var build = gulp.parallel(documentationBuild, fabricBuild, linting);
 
 //
 // Local Server Configuration and Testing Website
@@ -30,33 +40,32 @@ Server.serveSpecificPaths(Config.servePaths);
 //
 // Nuke Tasks
 // ---------------------------------------------------------------------------
-gulp.task('nuke', BuildConfig.nukeTasks);
+exports.nuke = gulp.parallel(fabricNuke, documentationNuke)
 
 //
 // Watch Tasks
 // ----------------------------------------------------------------------------
-gulp.task('watch-build-tasks', BuildConfig.buildTasks);
-gulp.task('watch-build', BuildConfig.buildTasks, function () {
-    return gulp.watch(Config.paths.src + '/**/*', Plugins.batch(function (events, done) {
-        Plugins.runSequence('watch-build-tasks', done);
-    }));
-});
+function watchBuild(done) {
+    gulp.watch(Config.paths.src + '/**/*', build);
+    done();
+};
 
-gulp.task('watch', ['watch-build', 'Server', 'BuildMessages-server']);
+exports.watch = gulp.series(build, server, watchBuild, buildMessagesServer);
 
+//
 // Debug Tasks
-gulp.task('watch-debug-build-tasks', BuildConfig.buildTasks);
-gulp.task('watch-debug-build', BuildConfig.buildTasks, function () {
-    return gulp.watch(Config.paths.src + '/**/*', Plugins.batch(function (events, done) {
-        Plugins.runSequence('watch-debug-build-tasks', 'BuildMessages-updated', done);
-    }));
-});
-gulp.task('watch-debug', ['ConfigureEnvironment-setDebugMode', 'Server', 'watch-debug-build', 'BuildMessages-server']);
+// ---------------------------------------------------------------------------
+function watchDebugBuild(done) {
+    gulp.watch(Config.paths.src + '/**/*', gulp.series(build, buildMessagesUpdated));
+    done();
+};
+
+exports.watchDebug = gulp.series(setDebugMode, build, server, watchDebugBuild, buildMessagesServer);
 
 //
 // Check For errors
 //
-gulp.task('Errors-checkAllErrors', BuildConfig.buildTasks,  function() {
+function checkAllErrors(done) {
     var returnFailedBuild = false;
      if (ErrorHandling.numberOfErrors() > 0) {
          ErrorHandling.generateError("------------------------------------------");
@@ -81,27 +90,26 @@ gulp.task('Errors-checkAllErrors', BuildConfig.buildTasks,  function() {
      
      if (returnFailedBuild) {
         process.exit(1);
+        done();
      } else {
-        return;
+        done();
      }
-});
+};
 
 
 //
 // Default Build
 // ----------------------------------------------------------------------------
+exports.default = gulp.series(build, checkAllErrors, buildMessagesFinished);
 
-var buildWithMessages = BuildConfig.buildTasks.concat(['Errors-checkAllErrors', 'BuildMessages-finished']);
-gulp.task('build', buildWithMessages);
-
-var rebuildWithMessages = BuildConfig.buildTasks.concat(['BuildMessages-finished']);
-gulp.task('re-build', rebuildWithMessages);
-
-gulp.task('default', ['build']);
+//
+// Re-Build
+// ----------------------------------------------------------------------------
+exports.rebuild = gulp.series(build, buildMessagesFinished);
 
 //
 // Packaging tasks
 // ----------------------------------------------------------------------------
-gulp.task('nuget-pack', function(callback) {
+exports.nugetPack = function(callback) {
     Plugins.nugetpack(Config.nugetConfig, Config.nugetPaths, callback);
-});
+};

@@ -1,5 +1,3 @@
-var gulp = require('gulp');
-var BuildConfig = require('./modules/BuildConfig');
 var ConsoleHelper = require('./modules/ConsoleHelper');
 var Config = require('./modules/Config');
 
@@ -8,14 +6,21 @@ var Config = require('./modules/Config');
 // ----------------------------------------------------------------------------
 
 // var allFinishedtasks = watchTasks.concat(['Errors-checkAllErrors']);
-gulp.task('BuildMessages-finished', BuildConfig.buildTasks, function () {
-    return console.log(ConsoleHelper.generateSuccess('Fabric build was successful, now sing and dance!', true));
-});
+function buildMessagesFinished(done) {
+    console.log(ConsoleHelper.generateSuccess('Fabric build was successful, now sing and dance!', true));
+    done();
+};
 
-gulp.task('BuildMessages-server', BuildConfig.buildTasks, function () {
-    return console.log(ConsoleHelper.generateSuccess('Fabric built successfully! ' + "\r\n" + 'Fabric documentation located at ' + Config.projectURL + ':' + Config.port, false));
-});
+function buildMessagesServer(done) {
+    console.log(ConsoleHelper.generateSuccess('Fabric built successfully! ' + "\r\n" + 'Fabric documentation located at ' + Config.projectURL + ':' + Config.port, false));
+    done();
+};
 
-gulp.task('BuildMessages-updated', BuildConfig.buildTasks, function () {
-    return console.log(ConsoleHelper.generateSuccess('Fabric updated, yay!', false));
-});
+function buildMessagesUpdated(done) {
+    console.log(ConsoleHelper.generateSuccess('Fabric updated, yay!', false));
+    done();
+};
+
+exports.buildMessagesServer = buildMessagesServer;
+exports.buildMessagesUpdated = buildMessagesUpdated;
+exports.buildMessagesFinished = buildMessagesFinished;
